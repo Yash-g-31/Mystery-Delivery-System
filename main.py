@@ -1,0 +1,88 @@
+import json, math
+
+
+# finding nearest agent to warehouse.
+def find_nearest_agent(agents, warehouse_location):
+   
+    nearest_agent = None
+    min_distance = float("inf")
+
+    for agent in agents:
+
+        # calculating agent distance from warehouse using euclidean method.
+        distance = math.sqrt((agent["location"][0] - warehouse_location[0])**2 + (agent["location"][1] - warehouse_location[1])**2)
+
+        if distance < min_distance:
+            min_distance = distance
+            nearest_agent = agent
+
+        # if distance of two agent is same then agent with less total distance will get order
+        elif distance == min_distance:
+            if agent["total_distance"] < nearest_agent["total_distance"]:
+                nearest_agent = agent
+
+    return (nearest_agent, min_distance)
+
+
+def deliver_package(agents, warehouses, packages):
+
+    for package in packages:
+        warehouse_location = warehouses[package["warehouse"]]
+        destination = package["destination"]
+
+        agent, distance_to_warehouse = find_nearest_agent(agents, warehouse_location)
+
+        agent["total_distance"] = agent["total_distance"] + distance_to_warehouse
+
+        # calculating distance of agent from warehouse to destination
+        distance_to_destination = math.sqrt((warehouse_location[0] - destination[0])**2 + (warehouse_location[1] - destination[1])**2)
+
+        agent["total_distance"] = agent["total_distance"] + distance_to_destination
+
+        # updating agent current location
+        agent["location"] = destination
+
+        agent["packages_delivered"] += 1
+
+
+
+# fetching data from json file
+with open("test_case_10.json", "r") as f:
+    data = json.load(f)
+
+agents = [{"id": key, "location": value, "total_distance": 0.0, "packages_delivered":0} for key, value in data["agents"].items()]
+
+deliver_package(agents, data["warehouses"], data["packages"])
+
+# generating report.json
+report = {}
+best_agent_id = None
+min_efficiency = float("inf")
+
+
+for agent in agents:
+
+    if agent["packages_delivered"] > 0:
+        efficiency = agent["total_distance"] / agent["packages_delivered"]
+
+    else:
+        efficiency = 0.0
+    
+    report[agent["id"]] = {
+        "packages_delivered": agent["packages_delivered"],
+        "total_distance": round(agent["total_distance"], 2),
+        "efficiency": round(efficiency, 2)
+    }
+
+    if efficiency < min_efficiency and agent["packages_delivered"] > 0:
+        min_efficiency = efficiency
+        best_agent_id = agent["id"]
+
+report["best_agent"] = best_agent_id
+
+
+# saving report.json
+with open("report.json", "w") as rf:
+    json.dump(report, rf, indent=4)
+
+print("Report generated successfully as 'report.json'")
